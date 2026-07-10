@@ -1,0 +1,71 @@
+# CloudPipe - deploy the static website to S3 + CloudFront on every push to main.
+#
+# Required repository secrets:
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  -> keys for the cloudpipe-github-actions IAM user
+#   S3_BUCKET                                  -> from CloudFormation output "BucketName"
+#   CLOUDFRONT_DISTRIBUTION_ID                 -> from CloudFormation output "DistributionId"
+
+name: Deploy Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'          # only deploy when site files actually change
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: {}        # manual "deploy now" button for emergencies/rollbacks
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false    # never cancel a half-finished deploy; queue instead
+
+jobs:
+  deploy:
+    name: Deploy to S3 + invalidate CloudFront
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Sync files to S3
+        run: |
+          # --delete removes files from S3 that were deleted from the repo,
+          # so the bucket always exactly mirrors the repository. This is what
+          # eliminates the "forgotten file" class of bugs.
+          aws s3 sync website/ "s3://${{ secrets.S3_BUCKET }}" \
+            --delete \
+            --exact-timestamps
+
+      - name: Invalidate CloudFront cache
+        run: |
+          # Without this, CloudFront edges keep serving the OLD files until
+          # their TTL expires - users would see stale content after a deploy.
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "## ✅ Deployment succeeded" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Pushed by: ${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Files synced to S3 and CloudFront cache invalidated." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Failure notice
+        if: failure()
+        run: |
+          echo "## ❌ Deployment FAILED" >> "$GITHUB_STEP_SUMMARY"
+          echo "Check the step logs above. The live site was NOT fully updated." >> "$GITHUB_STEP_SUMMARY"
+          # GitHub also emails the commit author automatically when a
+          # workflow they triggered fails - that's the basic notification
+          # the client asked for, with zero extra infrastructure.

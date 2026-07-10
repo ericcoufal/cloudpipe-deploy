@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudPipe - Static website hosting for a web design team.
+  Private S3 bucket (origin) + CloudFront (CDN/HTTPS) + least-privilege
+  IAM user for the GitHub Actions deployment pipeline.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: cloudpipe
+    Description: Prefix used for naming resources.
+
+Resources:
+  # ---------------------------------------------------------------
+  # S3 bucket that stores the website files (HTML/CSS/JS).
+  # WHY private: nobody should hit the bucket directly. All traffic
+  # goes through CloudFront, which gives us HTTPS, caching, and one
+  # place to control access.
+  # ---------------------------------------------------------------
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-website-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # ---------------------------------------------------------------
+  # Bucket policy: ONLY CloudFront (this specific distribution) may
+  # read objects. This is the modern Origin Access Control pattern.
+  # ---------------------------------------------------------------
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${WebsiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+
+  # ---------------------------------------------------------------
+  # Origin Access Control: how CloudFront signs its requests to S3.
+  # Replaces the legacy Origin Access Identity (OAI).
+  # ---------------------------------------------------------------
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${ProjectName}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ---------------------------------------------------------------
+  # CloudFront distribution: global CDN in front of the bucket.
+  # WHY: HTTPS (S3 website endpoints are HTTP-only), lower latency
+  # via edge caching, and DDoS protection at the edge.
+  # ---------------------------------------------------------------
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub '${ProjectName} website'
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        PriceClass: PriceClass_100   # US/EU edges only - cheapest tier, fine for local-business sites
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''   # empty because we use OAC, not OAI
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          # AWS managed "CachingOptimized" policy
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+        # SPA-friendly + clean error handling: serve index/error pages
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 60
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 60
+
+  # ---------------------------------------------------------------
+  # IAM user for GitHub Actions with LEAST PRIVILEGE:
+  # it can sync files to this one bucket and invalidate this one
+  # distribution - nothing else in the account.
+  # (Production upgrade: replace with GitHub OIDC role - see README.)
+  # ---------------------------------------------------------------
+  DeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub '${ProjectName}-github-actions'
+      Policies:
+        - PolicyName: DeployWebsite
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: SyncWebsiteFiles
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:GetObject
+                Resource: !Sub '${WebsiteBucket.Arn}/*'
+              - Sid: ListBucketForSync
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt WebsiteBucket.Arn
+              - Sid: InvalidateCache
+                Effect: Allow
+                Action: cloudfront:CreateInvalidation
+                Resource: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+
+Outputs:
+  BucketName:
+    Description: S3 bucket holding the website files (use as S3_BUCKET secret)
+    Value: !Ref WebsiteBucket
+  DistributionId:
+    Description: CloudFront distribution ID (use as CLOUDFRONT_DISTRIBUTION_ID secret)
+    Value: !Ref Distribution
+  WebsiteURL:
+    Description: Public URL of the website
+    Value: !Sub 'https://${Distribution.DomainName}'
+  DeployUserName:
+    Description: IAM user - create access keys for this user for GitHub Actions
+    Value: !Ref DeployUser

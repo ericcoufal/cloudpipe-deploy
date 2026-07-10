@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudPipe — Websites for Local Businesses</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <h1>CloudPipe</h1>
+    <p>Beautiful websites for local businesses — now with stress-free deployments.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>How this site got here</h2>
+      <p>
+        A developer pushed a commit to GitHub. GitHub Actions synced the files to S3
+        and invalidated the CloudFront cache. No manual uploads, no forgotten files.
+      </p>
+      <p class="deploy-badge" id="deploy-info">Deployed automatically via CI/CD ✅</p>
+    </section>
+
+    <section class="card">
+      <h2>Contact us</h2>
+      <!-- The contact form that broke during a manual deploy - never again. -->
+      <form id="contact-form">
+        <label>Name <input type="text" name="name" required /></label>
+        <label>Email <input type="email" name="email" required /></label>
+        <label>Message <textarea name="message" rows="4" required></textarea></label>
+        <button type="submit">Send</button>
+      </form>
+      <p id="form-status" hidden></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 CloudPipe · Deployed with GitHub Actions → S3 → CloudFront</p>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

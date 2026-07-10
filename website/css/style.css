@@ -1,0 +1,73 @@
+:root {
+  --brand: #2563eb;
+  --bg: #f8fafc;
+  --text: #1e293b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+header {
+  background: linear-gradient(135deg, var(--brand), #1e40af);
+  color: white;
+  text-align: center;
+  padding: 4rem 1rem;
+}
+
+main {
+  max-width: 720px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card h2 { margin-bottom: 0.75rem; }
+
+.deploy-badge {
+  margin-top: 1rem;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+form { display: grid; gap: 1rem; margin-top: 1rem; }
+label { display: grid; gap: 0.25rem; font-weight: 500; }
+
+input, textarea {
+  padding: 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+button {
+  background: var(--brand);
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover { background: #1e40af; }
+
+footer {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
