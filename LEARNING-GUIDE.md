@@ -1,4 +1,4 @@
-# CloudPipe Business Use Case | Every Step, and Why
+# CloudPipe Business Use Case
 
 This walks through the project the way a consultant would think about it: problem first, tools second.
 
