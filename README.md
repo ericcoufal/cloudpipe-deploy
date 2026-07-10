@@ -6,7 +6,7 @@ Push to `main` → GitHub Actions syncs `website/` to S3 → CloudFront cache in
 
 ## Architecture
 
-![CloudPipe architecture](docs/arch-preview.png)
+![CloudPipe architecture](docs/CLOUDPIPE_DIAGRAM.png)
 
 The problem this solves: developers were manually uploading files to production (15–20 min per change, occasional missing files breaking the live site). Now deployment is automatic, consistent, and visible.
 
