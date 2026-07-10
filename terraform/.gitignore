@@ -1,0 +1,10 @@
+# NEVER commit state - it maps your config to real resources and can
+# contain secrets in plaintext.
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+*.tfvars
+
+# NOTE: .terraform.lock.hcl SHOULD be committed (it pins exact provider
+# versions, like a package lockfile) - so it's deliberately not ignored.
