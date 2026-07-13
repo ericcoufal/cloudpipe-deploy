@@ -1,5 +1,5 @@
 # Pin versions so the config behaves the same on every machine and in CI.
-# WHY: unpinned providers are how "it worked yesterday" bugs happen -
+# WHY: unpinned providers are how "it worked yesterday" bugs happen
 # a new provider major version can change resource behavior.
 
 terraform {
@@ -23,9 +23,9 @@ terraform {
   #   use_lockfile = true   # S3-native state locking (Terraform >= 1.10)
   # }
   #
-  # INTERVIEW POINT: state management is THE key difference from
+  # Takeaway: state management is THE key difference from
   # CloudFormation, where AWS stores state for you. Terraform's state
-  # file maps your config to real resource IDs - lose it or corrupt it
+  # file maps your config to real resource IDs, lose it or corrupt it
   # and Terraform no longer knows what it manages.
 }
 

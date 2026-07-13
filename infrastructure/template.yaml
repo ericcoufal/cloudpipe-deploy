@@ -54,7 +54,6 @@ Resources:
 
   # ---------------------------------------------------------------
   # Origin Access Control: how CloudFront signs its requests to S3.
-  # Replaces the legacy Origin Access Identity (OAI).
   # ---------------------------------------------------------------
   OriginAccessControl:
     Type: AWS::CloudFront::OriginAccessControl
@@ -84,7 +83,7 @@ Resources:
             DomainName: !GetAtt WebsiteBucket.RegionalDomainName
             OriginAccessControlId: !GetAtt OriginAccessControl.Id
             S3OriginConfig:
-              OriginAccessIdentity: ''   # empty because we use OAC, not OAI
+              OriginAccessIdentity: ''   # empty because we use OAC
         DefaultCacheBehavior:
           TargetOriginId: S3Origin
           ViewerProtocolPolicy: redirect-to-https
